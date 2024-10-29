@@ -1,0 +1,3 @@
+/home/ratatuli/Documents/CodingFolder/CProjects/CVideoGame/build/CMakeFiles/CGaming.dir
+/home/ratatuli/Documents/CodingFolder/CProjects/CVideoGame/build/CMakeFiles/edit_cache.dir
+/home/ratatuli/Documents/CodingFolder/CProjects/CVideoGame/build/CMakeFiles/rebuild_cache.dir

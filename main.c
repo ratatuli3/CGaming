@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <stdio.h>
 
 typedef struct{
@@ -7,7 +8,14 @@ typedef struct{
 	char *name;
 } Man;
 
-int processEvents(SDL_Window *window, Man *man){
+typedef struct{
+	
+	//Players
+	Man man;
+
+} GameState;
+
+int processEvents(SDL_Window *window, GameState *game){
 	SDL_Event event;
 	int done = 0;
 
@@ -48,22 +56,22 @@ int processEvents(SDL_Window *window, Man *man){
 	// Before we had to constantly mash the button.
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
 	if (state[SDL_SCANCODE_LEFT]){
-		man->x-=3;
+		game->man.x-=3;
 	}
 	if (state[SDL_SCANCODE_RIGHT]){
-		man->x+=3;
+		game->man.x+=3;
 	}
 	if (state[SDL_SCANCODE_UP]){
-		man->y-=3;
+		game->man.y-=3;
 	}
 	if (state[SDL_SCANCODE_DOWN]){
-		man->y+=3;
+		game->man.y+=3;
 	}
 	
 	return done;
 }
 
-void doRender(SDL_Renderer *renderer, Man *man){
+void doRender(SDL_Renderer *renderer, GameState *game){
 	//set the drawing color to blue
 	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
 
@@ -73,7 +81,7 @@ void doRender(SDL_Renderer *renderer, Man *man){
 	//set the drawing color to white
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
-	SDL_Rect rect = {man->x, man->y, 50, 50};
+	SDL_Rect rect = {game->man.x, game->man.y, 50, 50};
 	SDL_RenderFillRect(renderer, &rect);
 
 	//After drawing we show what we've drawn
@@ -88,9 +96,9 @@ int main(int argc, char *argv[]){
 
 	SDL_Init(SDL_INIT_VIDEO); //Initialize SDL2
 	
-	Man man;
-	man.x = 220;
-	man.y = 140;
+	GameState game;
+	game.man.x = 220;
+	game.man.y = 140;
 
 	//Create an application window with the following settings:
 	window = SDL_CreateWindow(
@@ -110,10 +118,10 @@ int main(int argc, char *argv[]){
 	// Event Loop
 	while(!done){
 		// Check for events
-		done = processEvents(window, &man);
+		done = processEvents(window, &game);
 
 		//Render display
-		doRender(renderer, &man);
+		doRender(renderer, &game);
 	}
 
 	//Close and destroy the window
