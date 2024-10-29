@@ -14,6 +14,10 @@ typedef struct{
 } Star;
 
 typedef struct{
+	int x, y, w, h;
+} Ledge;
+
+typedef struct{
 	
 	//Players
 	Man man;
@@ -21,48 +25,88 @@ typedef struct{
 	//Stars
 	Star stars[100];
 
+	//Ledges
+	Ledge ledges[100];
+
 	//Images
 	SDL_Texture *starTexture;
 	SDL_Texture *rectTexture;
+	SDL_Texture *ledgeTexture;
 
 	//Renderer
 	SDL_Renderer *renderer;
 } GameState;
 
+void collisionDetect(GameState *game){
+	// Check for collision with any ledges
+	for(int i = 0; i < 100; i++){
+		float manw = 48, manh = 48; // Rectangle width and height, i am assuming hitbox
+		float manx = game->man.x, many = game->man.y; // Rectangle position
+		float ledgex = game->ledges[i].x, ledgey = game->ledges[i].y, ledgew = game->ledges[i].w, ledgeh = game->ledges[i].h; // Ledges position and hitbox
+		
+		if(many + manh > ledgey && many < ledgey + ledgeh){ // This literally means whether the rectangle is inbetween the ledge, basically whether if i write a x-axis line towards the ledge will it touch it or not.
+			if(manx < ledgex + ledgew && manx + manw > ledgex + ledgew){ // Rubbing against right edge.
+				game->man.x = ledgex-manw; // Set the x end position of the rectangle which is the leftmost position to the x position of the ledge minus the width of the rectangle so that the rectangle width does not clip through.
+				manx = ledgex-manw; // Reset the rectangles position.
+			}
+		}
+	}
+}
+
 void loadGame(GameState *game){
-	SDL_Surface *starSurface, *rectSurface = NULL;
+	SDL_Surface *surface = NULL; // Whenever you IMG_Load the surface it frees up the memory of the surface so you can use it again
 	game->man.x = 220;
 	game->man.y = 140;	
 	
 	//Load images and create rendering textures from them
-	starSurface = IMG_Load("../images/star.png");
-	if(starSurface == NULL){
+	surface = IMG_Load("../images/star.png");
+	if(surface == NULL){
 		printf("Cannot find star.png!\n\n");
 		SDL_Quit();
 		exit(1);
-	}	
+	}
+	
+	game->starTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
 
 	//Load images and create rendering textures from them
-	rectSurface = IMG_Load("../images/rect.png");
-	if(rectSurface == NULL){
+	surface = IMG_Load("../images/rect.png");
+	if(surface == NULL){
 		printf("Cannot find rect.png!\n\n");
 		SDL_Quit();
 		exit(1);
 	}
-
-	game->starTexture = SDL_CreateTextureFromSurface(game->renderer, starSurface);
-	SDL_FreeSurface(starSurface);
 	
-	game->rectTexture = SDL_CreateTextureFromSurface(game->renderer, rectSurface);
-	SDL_FreeSurface(rectSurface);
+	game->rectTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
 
+	//Load images and create rendering textures from them
+	surface = IMG_Load("../images/ledge.png");
+	if(surface == NULL){
+		printf("Cannot find ledge.png!\n\n");
+		SDL_Quit();
+		exit(1);
+	}
+	
+	game->ledgeTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
+	
 	//Initialize stars
 	for(int i = 0; i < 100; i++){
 		game->stars[i].x = random()%640;
 		game->stars[i].y = random()%480;
 	}
 
-
+	//Initialize ledges
+	for(int i = 0; i < 100; i++){
+		game->ledges[i].w = 256;
+		game->ledges[i].h = 64;
+		game->ledges[i].x = i*256;
+		game->ledges[i].y = 400;
+	}
+	game->ledges[99].x = 350;
+	game->ledges[99].y = 200;
 }
 
 int processEvents(SDL_Window *window, GameState *game){
@@ -131,20 +175,26 @@ void doRender(SDL_Renderer *renderer, GameState *game){
 	// Set the drawing color to white
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
+
+	// Draw the ledge images
+	for(int i = 0; i < 100; i++){
+		SDL_Rect ledgeRect = {game->ledges[i].x, game->ledges[i].y, game->ledges[i].w, game->ledges[i].h};
+		SDL_RenderCopy(renderer, game->ledgeTexture, NULL, &ledgeRect);
+	}
+
 	// Draw a rectangle at man's position
 	SDL_Rect rect = {game->man.x, game->man.y, 50, 50};
-	SDL_RenderCopy(renderer, game->rectTexture, NULL, &rect);
+	SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
 	//SDL_RenderFillRect(renderer, &rect);
-	
-	// Draw the star image
-	for(int i = 0; i < 100; i++){
-		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
-		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
-	}
+
+	// Draw the star images
+//	for(int i = 0; i < 100; i++){
+//		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
+//		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
+//	}
 
 	//After drawing we show what we've drawn
 	SDL_RenderPresent(renderer);
-
 }
 
 int main(int argc, char *argv[]){
@@ -178,6 +228,8 @@ int main(int argc, char *argv[]){
 	while(!done){
 		// Check for events
 		done = processEvents(window, &gameState);
+
+		collisionDetect(&gameState);
 
 		//Render display
 		doRender(renderer, &gameState);
