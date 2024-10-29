@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef struct{
 	int x, y;
@@ -9,11 +10,60 @@ typedef struct{
 } Man;
 
 typedef struct{
+	int x, y;
+} Star;
+
+typedef struct{
 	
 	//Players
 	Man man;
 
+	//Stars
+	Star stars[100];
+
+	//Images
+	SDL_Texture *starTexture;
+	SDL_Texture *rectTexture;
+
+	//Renderer
+	SDL_Renderer *renderer;
 } GameState;
+
+void loadGame(GameState *game){
+	SDL_Surface *starSurface, *rectSurface = NULL;
+	game->man.x = 220;
+	game->man.y = 140;	
+	
+	//Load images and create rendering textures from them
+	starSurface = IMG_Load("../images/star.png");
+	if(starSurface == NULL){
+		printf("Cannot find star.png!\n\n");
+		SDL_Quit();
+		exit(1);
+	}	
+
+	//Load images and create rendering textures from them
+	rectSurface = IMG_Load("../images/rect.png");
+	if(rectSurface == NULL){
+		printf("Cannot find rect.png!\n\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->starTexture = SDL_CreateTextureFromSurface(game->renderer, starSurface);
+	SDL_FreeSurface(starSurface);
+	
+	game->rectTexture = SDL_CreateTextureFromSurface(game->renderer, rectSurface);
+	SDL_FreeSurface(rectSurface);
+
+	//init stars
+	for(int i = 0; i < 100; i++){
+		game->stars[i].x = random()%640;
+		game->stars[i].y = random()%480;
+	}
+
+
+}
 
 int processEvents(SDL_Window *window, GameState *game){
 	SDL_Event event;
@@ -72,17 +122,25 @@ int processEvents(SDL_Window *window, GameState *game){
 }
 
 void doRender(SDL_Renderer *renderer, GameState *game){
-	//set the drawing color to blue
+	// Set the drawing color to blue
 	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
 
-	//Clear the screen (to blue)
+	// Clear the screen (to blue)
 	SDL_RenderClear(renderer);
 
-	//set the drawing color to white
+	// Set the drawing color to white
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
+	// Draw a rectangle at man's position
 	SDL_Rect rect = {game->man.x, game->man.y, 50, 50};
-	SDL_RenderFillRect(renderer, &rect);
+	SDL_RenderCopy(renderer, game->rectTexture, NULL, &rect);
+	//SDL_RenderFillRect(renderer, &rect);
+	
+	// Draw the star image
+	for(int i = 0; i < 100; i++){
+		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
+		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
+	}
 
 	//After drawing we show what we've drawn
 	SDL_RenderPresent(renderer);
@@ -91,18 +149,17 @@ void doRender(SDL_Renderer *renderer, GameState *game){
 
 int main(int argc, char *argv[]){
 
-	SDL_Window *window;	// Declare a window
-	SDL_Renderer *renderer;	// Declare a renderer
+	GameState gameState;
+	SDL_Window *window = NULL;	// Declare a window
+	SDL_Renderer *renderer = NULL;	// Declare a renderer
 
 	SDL_Init(SDL_INIT_VIDEO); //Initialize SDL2
 	
-	GameState game;
-	game.man.x = 220;
-	game.man.y = 140;
+	srandom((int)time(NULL));
 
 	//Create an application window with the following settings:
 	window = SDL_CreateWindow(
-		"Fortnite",		// Window Title
+		"Square Game",		// Window Title
 		SDL_WINDOWPOS_UNDEFINED,// initial x position
 		SDL_WINDOWPOS_UNDEFINED,// initial y position
 		640,	// width
@@ -111,20 +168,26 @@ int main(int argc, char *argv[]){
 	);
 	
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-
+	gameState.renderer = renderer;
+	loadGame(&gameState);
+	
 	// The window is open: enter program loop (see SDL_PollEvent)
 	int done = 0;
 
 	// Event Loop
 	while(!done){
 		// Check for events
-		done = processEvents(window, &game);
+		done = processEvents(window, &gameState);
 
 		//Render display
-		doRender(renderer, &game);
+		doRender(renderer, &gameState);
 	}
 
-	//Close and destroy the window
+	// Shutdown game and unload all memory
+	SDL_DestroyTexture(gameState.starTexture);
+	SDL_DestroyTexture(gameState.rectTexture);
+
+	// Close and destroy the window
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
 
