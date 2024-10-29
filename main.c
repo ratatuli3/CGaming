@@ -56,7 +56,7 @@ void loadGame(GameState *game){
 	game->rectTexture = SDL_CreateTextureFromSurface(game->renderer, rectSurface);
 	SDL_FreeSurface(rectSurface);
 
-	//init stars
+	//Initialize stars
 	for(int i = 0; i < 100; i++){
 		game->stars[i].x = random()%640;
 		game->stars[i].y = random()%480;
@@ -123,7 +123,7 @@ int processEvents(SDL_Window *window, GameState *game){
 
 void doRender(SDL_Renderer *renderer, GameState *game){
 	// Set the drawing color to blue
-	SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 
 	// Clear the screen (to blue)
 	SDL_RenderClear(renderer);
