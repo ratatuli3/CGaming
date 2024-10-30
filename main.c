@@ -4,7 +4,8 @@
 #include <time.h>
 
 typedef struct{
-	int x, y;
+	float x, y;
+	float dy;
 	short life;
 	char *name;
 } Man;
@@ -92,7 +93,8 @@ void loadGame(GameState *game){
 	SDL_FreeSurface(surface);
 
 	game->man.x = 220;
-	game->man.y = 140;	
+	game->man.y = 140;
+	game->man.dy = 0;
 	
 	//Initialize stars
 	for(int i = 0; i < 100; i++){
@@ -135,6 +137,9 @@ int processEvents(SDL_Window *window, GameState *game){
 					case SDLK_LEFT:
 					break;
 					case SDLK_UP:
+						if(!game->man.dy){
+							//wait
+						}
 					break;
 					case SDLK_DOWN:
 					break;
@@ -150,11 +155,11 @@ int processEvents(SDL_Window *window, GameState *game){
 
 	// This is basically that if you keep a button pressed it will keep getting that value as a command.
 	// Before we had to constantly mash the button.
-	
+
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
 	float speed = 3;
 	float nextX = game->man.x;
-    float nextY = game->man.y;
+	float nextY = game->man.y;
 
 	if (state[SDL_SCANCODE_LEFT]){
 		nextX-=speed;
@@ -162,26 +167,32 @@ int processEvents(SDL_Window *window, GameState *game){
 	if (state[SDL_SCANCODE_RIGHT]){
 		nextX+=speed;
 	}
-	if (state[SDL_SCANCODE_UP]){
-		nextY-=speed;
-	}
-	if (state[SDL_SCANCODE_DOWN]){
-		nextY+=speed;
-	}
+	//if (state[SDL_SCANCODE_UP]){
+	//	nextY-=speed;
+	//}
+	//if (state[SDL_SCANCODE_DOWN]){
+	//	nextY+=speed;
+	//}
 
-    // Only move if the next position wouldn't cause a collision
-    if (!wouldCollide(game, nextX, nextY)) {
-        game->man.x = nextX;
-        game->man.y = nextY;
-    } else {
-        // Optionally try moving on just X or Y axis if diagonal movement failed
-        if (!wouldCollide(game, nextX, game->man.y)) {
-            game->man.x = nextX;  // Allow X movement
-        }
-        if (!wouldCollide(game, game->man.x, nextY)) {
-            game->man.y = nextY;  // Allow Y movement
-        }
-    }
+	// Only move if the next position wouldn't cause a collision
+	if (!wouldCollide(game, nextX, nextY)) {
+		game->man.x = nextX;
+		game->man.y = nextY;
+	} else {
+	// Optionally try moving on just X or Y axis if diagonal movement failed
+		if (!wouldCollide(game, nextX, game->man.y)) {
+			game->man.x = nextX;  // Allow X movement
+		}
+		if (!wouldCollide(game, game->man.x, nextY)) {
+			game->man.y = nextY;  // Allow Y movement
+			if (game->man.dy > 0) {
+				game->man.dy = 0;
+			}
+			else if (game->man.dy < 0){
+				game->man.dy = 0;
+			}
+		}
+	}
 	
 	return done;
 }
