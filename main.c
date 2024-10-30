@@ -105,7 +105,7 @@ void loadGame(GameState *game){
 		game->ledges[i].w = 256;
 		game->ledges[i].h = 64;
 		game->ledges[i].x = i*256;
-		game->ledges[i].y = 400;
+		game->ledges[i].y = 430;
 	}
 	game->ledges[99].x = 350;
 	game->ledges[99].y = 200;
