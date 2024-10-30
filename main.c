@@ -320,6 +320,7 @@ int main(int argc, char *argv[]){
 	// Shutdown game and unload all memory
 	SDL_DestroyTexture(gameState.starTexture);
 	SDL_DestroyTexture(gameState.rectTexture);
+	SDL_DestroyTexture(gameState.ledgeTexture);
 
 	// Close and destroy the window
 	SDL_DestroyWindow(window);
