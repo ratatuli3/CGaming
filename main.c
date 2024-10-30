@@ -102,12 +102,12 @@ void loadGame(GameState *game){
 
 	//Initialize ledges
 	for(int i = 0; i < 100; i++){
-		game->ledges[i].w = 256;
-		game->ledges[i].h = 64;
+		game->ledges[i].w = 300;
+		game->ledges[i].h = 97;
 		game->ledges[i].x = i*256;
 		game->ledges[i].y = 430;
 	}
-	game->ledges[99].x = 350;
+	game->ledges[99].x = 150;
 	game->ledges[99].y = 200;
 }
 
@@ -188,14 +188,10 @@ int processEvents(SDL_Window *window, GameState *game){
 
 void doRender(SDL_Renderer *renderer, GameState *game){
 	// Set the drawing color to blue
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+	SDL_SetRenderDrawColor(renderer, 97, 133, 248, 255);
 
 	// Clear the screen (to blue)
 	SDL_RenderClear(renderer);
-
-	// Set the drawing color to white
-	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-
 
 	// Draw the ledge images
 	for(int i = 0; i < 100; i++){
