@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <time.h>
 
+#define GRAVITY 0.05f
+
 typedef struct{
 	float x, y;
 	float dy;
@@ -54,6 +56,83 @@ int wouldCollide(GameState *game, float nextX, float nextY) {
         }
     }
     return 0;  // Wouldn't collide
+}
+
+int isVerticalCollision(GameState *game, float nextX, float nextY) {
+    float manw = 48, manh = 48;
+    
+    for(int i = 0; i < 100; i++) {
+        float ledgex = game->ledges[i].x;
+        float ledgey = game->ledges[i].y;
+        float ledgew = game->ledges[i].w;
+        float ledgeh = game->ledges[i].h;
+        
+        int horizontalOverlap = (nextX + manw > ledgex && nextX < ledgex + ledgew);
+        int verticalCollision = (nextY + manh > ledgey && nextY < ledgey + ledgeh);
+        
+        if (horizontalOverlap && verticalCollision) {
+            // We're colliding, now check if we can move horizontally
+            if (!wouldCollide(game, nextX, game->man.y)) {
+                return 1;  // It's a vertical-only collision
+            }
+        }
+    }
+    return 0;
+}
+
+void process(GameState *game){
+	Man *man = &game->man;
+	const Uint8 *state = SDL_GetKeyboardState(NULL);
+
+	float speed = 3;
+	float nextX = game->man.x;
+	float nextY = game->man.y + game->man.dy + GRAVITY;
+	float nextDY = game->man.dy + GRAVITY;
+
+	if (state[SDL_SCANCODE_LEFT]){
+		nextX-=speed;
+	}
+	if (state[SDL_SCANCODE_RIGHT]){
+		nextX+=speed;
+	}
+	//if (state[SDL_SCANCODE_UP]){
+	//	nextY-=speed;
+	//}
+	//if (state[SDL_SCANCODE_DOWN]){
+	//	nextY+=speed;
+	//}
+	if (state[SDL_SCANCODE_A]){
+		nextX-=speed;
+	}
+	if (state[SDL_SCANCODE_D]){
+		nextX+=speed;
+	}
+	//if (state[SDL_SCANCODE_W]){
+	//	nextY-=speed;
+	//}
+	//if (state[SDL_SCANCODE_S]){
+	//	nextY+=speed;
+	//}
+	
+
+	// Only move if the next position wouldn't cause a collision
+	if (!wouldCollide(game, nextX, nextY)) {
+		game->man.x = nextX;
+		game->man.y = nextY;
+		game->man.dy = nextDY;
+	} else {
+	// Optionally try moving on just X or Y axis if diagonal movement failed
+		if (isVerticalCollision(game, nextX, nextY)) {
+			game->man.dy = 0;
+		}
+		if (!wouldCollide(game, nextX, game->man.y)) {
+			game->man.x = nextX;  // Allow X movement
+		}
+		if (!wouldCollide(game, game->man.x, nextY)) {
+			game->man.y = nextY;  // Allow Y movement
+			game->man.dy = nextDY;
+		}
+	}
 }
 
 void loadGame(GameState *game){
@@ -138,10 +217,21 @@ int processEvents(SDL_Window *window, GameState *game){
 					break;
 					case SDLK_UP:
 						if(!game->man.dy){
-							//wait
+							game->man.dy = -5;
 						}
 					break;
 					case SDLK_DOWN:
+					break;
+					case SDLK_d:
+					break;
+					case SDLK_a:
+					break;
+					case SDLK_w:
+						if(!game->man.dy){
+							game->man.dy = -5;
+						}
+					break;
+					case SDLK_s:
 					break;
 				}
 			}
@@ -156,43 +246,7 @@ int processEvents(SDL_Window *window, GameState *game){
 	// This is basically that if you keep a button pressed it will keep getting that value as a command.
 	// Before we had to constantly mash the button.
 
-	const Uint8 *state = SDL_GetKeyboardState(NULL);
-	float speed = 3;
-	float nextX = game->man.x;
-	float nextY = game->man.y;
 
-	if (state[SDL_SCANCODE_LEFT]){
-		nextX-=speed;
-	}
-	if (state[SDL_SCANCODE_RIGHT]){
-		nextX+=speed;
-	}
-	//if (state[SDL_SCANCODE_UP]){
-	//	nextY-=speed;
-	//}
-	//if (state[SDL_SCANCODE_DOWN]){
-	//	nextY+=speed;
-	//}
-
-	// Only move if the next position wouldn't cause a collision
-	if (!wouldCollide(game, nextX, nextY)) {
-		game->man.x = nextX;
-		game->man.y = nextY;
-	} else {
-	// Optionally try moving on just X or Y axis if diagonal movement failed
-		if (!wouldCollide(game, nextX, game->man.y)) {
-			game->man.x = nextX;  // Allow X movement
-		}
-		if (!wouldCollide(game, game->man.x, nextY)) {
-			game->man.y = nextY;  // Allow Y movement
-			if (game->man.dy > 0) {
-				game->man.dy = 0;
-			}
-			else if (game->man.dy < 0){
-				game->man.dy = 0;
-			}
-		}
-	}
 	
 	return done;
 }
@@ -256,6 +310,8 @@ int main(int argc, char *argv[]){
 	while(!done){
 		// Check for events
 		done = processEvents(window, &gameState);
+
+		process(&gameState);
 
 		//Render display
 		doRender(renderer, &gameState);
