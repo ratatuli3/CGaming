@@ -37,26 +37,26 @@ typedef struct{
 	SDL_Renderer *renderer;
 } GameState;
 
-void collisionDetect(GameState *game){
-	// Check for collision with any ledges
-	for(int i = 0; i < 100; i++){
-		float manw = 48, manh = 48; // Rectangle width and height, i am assuming hitbox
-		float manx = game->man.x, many = game->man.y; // Rectangle position
-		float ledgex = game->ledges[i].x, ledgey = game->ledges[i].y, ledgew = game->ledges[i].w, ledgeh = game->ledges[i].h; // Ledges position and hitbox
-		
-		if(many + manh > ledgey && many < ledgey + ledgeh){ // This literally means whether the rectangle is inbetween the ledge, basically whether if i write a x-axis line towards the ledge will it touch it or not.
-			if(manx < ledgex + ledgew && manx + manw > ledgex + ledgew){ // Rubbing against right edge.
-				game->man.x = ledgex-manw; // Set the x end position of the rectangle which is the leftmost position to the x position of the ledge minus the width of the rectangle so that the rectangle width does not clip through.
-				manx = ledgex-manw; // Reset the rectangles position.
-			}
-		}
-	}
+int wouldCollide(GameState *game, float nextX, float nextY) {
+    float manw = 48, manh = 48;
+    
+    for(int i = 0; i < 100; i++) {
+        float ledgex = game->ledges[i].x;
+        float ledgey = game->ledges[i].y;
+        float ledgew = game->ledges[i].w;
+        float ledgeh = game->ledges[i].h;
+        
+        // Check if the NEXT position would overlap with this ledge
+        if(nextX + manw > ledgex && nextX < ledgex + ledgew &&
+           nextY + manh > ledgey && nextY < ledgey + ledgeh) {
+            return 1;  // Would collide
+        }
+    }
+    return 0;  // Wouldn't collide
 }
 
 void loadGame(GameState *game){
 	SDL_Surface *surface = NULL; // Whenever you IMG_Load the surface it frees up the memory of the surface so you can use it again
-	game->man.x = 220;
-	game->man.y = 140;	
 	
 	//Load images and create rendering textures from them
 	surface = IMG_Load("../images/star.png");
@@ -91,6 +91,8 @@ void loadGame(GameState *game){
 	game->ledgeTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
 	SDL_FreeSurface(surface);
 
+	game->man.x = 220;
+	game->man.y = 140;	
 	
 	//Initialize stars
 	for(int i = 0; i < 100; i++){
@@ -148,19 +150,38 @@ int processEvents(SDL_Window *window, GameState *game){
 
 	// This is basically that if you keep a button pressed it will keep getting that value as a command.
 	// Before we had to constantly mash the button.
+	
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
+	float speed = 3;
+	float nextX = game->man.x;
+    float nextY = game->man.y;
+
 	if (state[SDL_SCANCODE_LEFT]){
-		game->man.x-=3;
+		nextX-=speed;
 	}
 	if (state[SDL_SCANCODE_RIGHT]){
-		game->man.x+=3;
+		nextX+=speed;
 	}
 	if (state[SDL_SCANCODE_UP]){
-		game->man.y-=3;
+		nextY-=speed;
 	}
 	if (state[SDL_SCANCODE_DOWN]){
-		game->man.y+=3;
+		nextY+=speed;
 	}
+
+    // Only move if the next position wouldn't cause a collision
+    if (!wouldCollide(game, nextX, nextY)) {
+        game->man.x = nextX;
+        game->man.y = nextY;
+    } else {
+        // Optionally try moving on just X or Y axis if diagonal movement failed
+        if (!wouldCollide(game, nextX, game->man.y)) {
+            game->man.x = nextX;  // Allow X movement
+        }
+        if (!wouldCollide(game, game->man.x, nextY)) {
+            game->man.y = nextY;  // Allow Y movement
+        }
+    }
 	
 	return done;
 }
@@ -183,7 +204,7 @@ void doRender(SDL_Renderer *renderer, GameState *game){
 	}
 
 	// Draw a rectangle at man's position
-	SDL_Rect rect = {game->man.x, game->man.y, 50, 50};
+	SDL_Rect rect = {game->man.x, game->man.y, 48, 48};
 	SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
 	//SDL_RenderFillRect(renderer, &rect);
 
@@ -228,8 +249,6 @@ int main(int argc, char *argv[]){
 	while(!done){
 		// Check for events
 		done = processEvents(window, &gameState);
-
-		collisionDetect(&gameState);
 
 		//Render display
 		doRender(renderer, &gameState);
