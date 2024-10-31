@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#define GRAVITY 0.05f
+#define GRAVITY 0.2f
 
 typedef struct{
 	float x, y;
@@ -58,79 +58,57 @@ int wouldCollide(GameState *game, float nextX, float nextY) {
     return 0;  // Wouldn't collide
 }
 
-int isVerticalCollision(GameState *game, float nextX, float nextY) {
-    float manw = 48, manh = 48;
-    
-    for(int i = 0; i < 100; i++) {
-        float ledgex = game->ledges[i].x;
-        float ledgey = game->ledges[i].y;
-        float ledgew = game->ledges[i].w;
-        float ledgeh = game->ledges[i].h;
-        
-        int horizontalOverlap = (nextX + manw > ledgex && nextX < ledgex + ledgew);
-        int verticalCollision = (nextY + manh > ledgey && nextY < ledgey + ledgeh);
-        
-        if (horizontalOverlap && verticalCollision) {
-            // We're colliding, now check if we can move horizontally
-            if (!wouldCollide(game, nextX, game->man.y)) {
-                return 1;  // It's a vertical-only collision
-            }
-        }
-    }
-    return 0;
-}
-
 void process(GameState *game){
 	Man *man = &game->man;
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
 
 	float speed = 3;
-	float nextX = game->man.x;
-	float nextY = game->man.y + game->man.dy + GRAVITY;
-	float nextDY = game->man.dy + GRAVITY;
+	float nextX = man->x;
+	float nextY = man->y + man->dy + GRAVITY;
+	float nextDY = man->dy + GRAVITY;
 
-	if (state[SDL_SCANCODE_LEFT]){
+	if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]){
 		nextX-=speed;
 	}
-	if (state[SDL_SCANCODE_RIGHT]){
+	if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]){
 		nextX+=speed;
 	}
-	//if (state[SDL_SCANCODE_UP]){
-	//	nextY-=speed;
-	//}
-	//if (state[SDL_SCANCODE_DOWN]){
-	//	nextY+=speed;
-	//}
-	if (state[SDL_SCANCODE_A]){
-		nextX-=speed;
+	if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
+		if (!man->dy) {
+		        printf("Jump attempted - dy: %f\n", man->dy);
+			man->dy = -15;
+		} else {
+			printf("Jump blocked - dy: %f\n", man->dy);
+		}
 	}
-	if (state[SDL_SCANCODE_D]){
-		nextX+=speed;
-	}
-	//if (state[SDL_SCANCODE_W]){
-	//	nextY-=speed;
 	//}
-	//if (state[SDL_SCANCODE_S]){
+	//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
 	//	nextY+=speed;
 	//}
 	
+	if (nextDY < 0){
+		nextDY += GRAVITY;
+	}
 
 	// Only move if the next position wouldn't cause a collision
 	if (!wouldCollide(game, nextX, nextY)) {
-		game->man.x = nextX;
-		game->man.y = nextY;
-		game->man.dy = nextDY;
+		man->x = nextX;
+		man->y = nextY;
+		man->dy = nextDY;
 	} else {
 	// Optionally try moving on just X or Y axis if diagonal movement failed
-		if (isVerticalCollision(game, nextX, nextY)) {
-			game->man.dy = 0;
+		if (nextDY < 0){ // This means if its touching the bottom cause velocity would only be negative if its already jumping
+			man->dy = GRAVITY;
+		} else {
+			man->dy = 0;
 		}
-		if (!wouldCollide(game, nextX, game->man.y)) {
-			game->man.x = nextX;  // Allow X movement
+		//}
+		if (!wouldCollide(game, nextX, man->y)) {
+			man->x = nextX;  // Allow X movement
 		}
-		if (!wouldCollide(game, game->man.x, nextY)) {
-			game->man.y = nextY;  // Allow Y movement
-			game->man.dy = nextDY;
+		if (!wouldCollide(game, man->x, nextY)) {
+			man->y = nextY;  // Allow Y movement
+			man->dy = nextDY;
 		}
 	}
 }
@@ -217,7 +195,7 @@ int processEvents(SDL_Window *window, GameState *game){
 					break;
 					case SDLK_UP:
 						if(!game->man.dy){
-							game->man.dy = -5;
+							game->man.dy = -15;
 						}
 					break;
 					case SDLK_DOWN:
@@ -228,7 +206,7 @@ int processEvents(SDL_Window *window, GameState *game){
 					break;
 					case SDLK_w:
 						if(!game->man.dy){
-							game->man.dy = -5;
+							game->man.dy = -15;
 						}
 					break;
 					case SDLK_s:
