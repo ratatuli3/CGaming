@@ -2,43 +2,11 @@
 #include <SDL2/SDL_image.h>
 #include <stdio.h>
 #include <time.h>
+#include "main.h"
+#include "status.h"
+
 
 #define GRAVITY 0.2f
-
-typedef struct{
-	float x, y;
-	float dy;
-	short life;
-	char *name;
-} Man;
-
-typedef struct{
-	int x, y;
-} Star;
-
-typedef struct{
-	int x, y, w, h;
-} Ledge;
-
-typedef struct{
-	
-	//Players
-	Man man;
-
-	//Stars
-	Star stars[100];
-
-	//Ledges
-	Ledge ledges[100];
-
-	//Images
-	SDL_Texture *starTexture;
-	SDL_Texture *rectTexture;
-	SDL_Texture *ledgeTexture;
-
-	//Renderer
-	SDL_Renderer *renderer;
-} GameState;
 
 int wouldCollide(GameState *game, float nextX, float nextY) {
     float manw = 48, manh = 48;
@@ -59,56 +27,64 @@ int wouldCollide(GameState *game, float nextX, float nextY) {
 }
 
 void process(GameState *game){
-	Man *man = &game->man;
-	const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-	float speed = 3;
-	float nextX = man->x;
-	float nextY = man->y + man->dy + GRAVITY;
-	float nextDY = man->dy + GRAVITY;
+	// Add time.
+	game->time++;
 
-	if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]){
-		nextX-=speed;
+	if(game->time > 120){
+		shutdownStatusLives(game);
+		game->gameStatus = STATUS_STATE_GAME;
 	}
-	if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]){
-		nextX+=speed;
-	}
-	if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
-		if (!man->dy) {
-		        printf("Jump attempted - dy: %f\n", man->dy);
-			man->dy = -15;
-		} else {
-			printf("Jump blocked - dy: %f\n", man->dy);
-		}
-	}
-	//}
-	//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
-	//	nextY+=speed;
-	//}
 	
-	if (nextDY < 0){
-		nextDY += GRAVITY;
-	}
+	if(game->gameStatus == STATUS_STATE_GAME){
+		Man *man = &game->man;
+		const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-	// Only move if the next position wouldn't cause a collision
-	if (!wouldCollide(game, nextX, nextY)) {
-		man->x = nextX;
-		man->y = nextY;
-		man->dy = nextDY;
-	} else {
-	// Optionally try moving on just X or Y axis if diagonal movement failed
-		if (nextDY < 0){ // This means if its touching the bottom cause velocity would only be negative if its already jumping
-			man->dy = GRAVITY;
-		} else {
-			man->dy = 0;
+		float speed = 3;
+		float nextX = man->x;
+		float nextY = man->y + man->dy + GRAVITY;
+		float nextDY = man->dy + GRAVITY;
+
+		if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]){
+			nextX-=speed;
+		}
+		if (state[SDL_SCANCODE_RIGHT] || state[SDL_SCANCODE_D]){
+			nextX+=speed;
+		}
+		if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
+			if (!man->dy) {
+				man->dy = -15;
+			}
 		}
 		//}
-		if (!wouldCollide(game, nextX, man->y)) {
-			man->x = nextX;  // Allow X movement
+		//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
+		//	nextY+=speed;
+		//}
+		
+		if (nextDY < 0){
+			nextDY += GRAVITY;
 		}
-		if (!wouldCollide(game, man->x, nextY)) {
-			man->y = nextY;  // Allow Y movement
+
+		// Only move if the next position wouldn't cause a collision
+		if (!wouldCollide(game, nextX, nextY)) {
+			man->x = nextX;
+			man->y = nextY;
 			man->dy = nextDY;
+		} else {
+		// Optionally try moving on just X or Y axis if diagonal movement failed
+			if (nextDY < 0){ // This means if its touching the bottom cause velocity would only be negative if its already jumping
+				man->dy = GRAVITY;
+			} else if (man->dy != -15){
+				man->dy = 0;
+			}
+			//}
+			if (!wouldCollide(game, nextX, man->y)) {
+				man->x = nextX;  // Allow X movement
+			}
+			if (!wouldCollide(game, man->x, nextY)) {
+				man->y = nextY;  // Allow Y movement
+				man->dy = nextDY;
+			}
 		}
 	}
 }
@@ -149,9 +125,21 @@ void loadGame(GameState *game){
 	game->ledgeTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
 	SDL_FreeSurface(surface);
 
+	game->fontTexture = TTF_OpenFont("../fonts/ARCADECLASSIC.TTF", 48);
+	if(!game->fontTexture){
+		printf("Cannot find ARCADECLASSIC.TTF!\n\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->labelTexture = NULL;
+
 	game->man.x = 220;
 	game->man.y = 140;
 	game->man.dy = 0;
+	game->gameStatus = STATUS_STATE_LIVES;
+
+	initStatusLives(game);
 	
 	//Initialize stars
 	for(int i = 0; i < 100; i++){
@@ -230,29 +218,33 @@ int processEvents(SDL_Window *window, GameState *game){
 }
 
 void doRender(SDL_Renderer *renderer, GameState *game){
-	// Set the drawing color to blue
-	SDL_SetRenderDrawColor(renderer, 97, 133, 248, 255);
 
-	// Clear the screen (to blue)
-	SDL_RenderClear(renderer);
+	if(game->gameStatus == STATUS_STATE_LIVES){
+		drawStatusLives(game);
+	} else if(game->gameStatus == STATUS_STATE_GAME){
 
-	// Draw the ledge images
-	for(int i = 0; i < 100; i++){
-		SDL_Rect ledgeRect = {game->ledges[i].x, game->ledges[i].y, game->ledges[i].w, game->ledges[i].h};
-		SDL_RenderCopy(renderer, game->ledgeTexture, NULL, &ledgeRect);
+		// Set the drawing color to blue
+		SDL_SetRenderDrawColor(renderer, 97, 133, 248, 255);
+
+		// Clear the screen (to blue)
+		SDL_RenderClear(renderer);
+
+		// Draw the ledge images
+		for(int i = 0; i < 100; i++){
+			SDL_Rect ledgeRect = {game->ledges[i].x, game->ledges[i].y, game->ledges[i].w, game->ledges[i].h};
+			SDL_RenderCopy(renderer, game->ledgeTexture, NULL, &ledgeRect);
+		}
+
+		// Draw a rectangle at man's position
+		SDL_Rect rect = {game->man.x, game->man.y, 48, 48};
+		SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
+
+		// Draw the star images
+	//	for(int i = 0; i < 100; i++){
+	//		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
+	//		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
+	//	}
 	}
-
-	// Draw a rectangle at man's position
-	SDL_Rect rect = {game->man.x, game->man.y, 48, 48};
-	SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
-	//SDL_RenderFillRect(renderer, &rect);
-
-	// Draw the star images
-//	for(int i = 0; i < 100; i++){
-//		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
-//		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
-//	}
-
 	//After drawing we show what we've drawn
 	SDL_RenderPresent(renderer);
 }
@@ -279,6 +271,9 @@ int main(int argc, char *argv[]){
 	
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	gameState.renderer = renderer;
+
+	TTF_Init(); // Initialize font system
+
 	loadGame(&gameState);
 	
 	// The window is open: enter program loop (see SDL_PollEvent)
@@ -300,9 +295,18 @@ int main(int argc, char *argv[]){
 	SDL_DestroyTexture(gameState.rectTexture);
 	SDL_DestroyTexture(gameState.ledgeTexture);
 
+	if(gameState.labelTexture != NULL){
+		SDL_DestroyTexture(gameState.labelTexture);
+	}
+	
+	TTF_CloseFont(gameState.fontTexture);
+
 	// Close and destroy the window
 	SDL_DestroyWindow(window);
 	SDL_DestroyRenderer(renderer);
+
+	// Close fonts
+	TTF_Quit();
 
 	//Clean up
 	SDL_Quit();
