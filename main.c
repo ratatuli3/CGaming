@@ -138,6 +138,7 @@ void loadGame(GameState *game){
 	game->man.y = 140;
 	game->man.dy = 0;
 	game->gameStatus = STATUS_STATE_LIVES;
+	game->man.lives = 3;
 
 	initStatusLives(game);
 	
@@ -221,7 +222,8 @@ void doRender(SDL_Renderer *renderer, GameState *game){
 
 	if(game->gameStatus == STATUS_STATE_LIVES){
 		drawStatusLives(game);
-	} else if(game->gameStatus == STATUS_STATE_GAME){
+	} 
+	else if(game->gameStatus == STATUS_STATE_GAME){
 
 		// Set the drawing color to blue
 		SDL_SetRenderDrawColor(renderer, 97, 133, 248, 255);

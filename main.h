@@ -9,12 +9,10 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 
-
-
 typedef struct{
 	float x, y;
 	float dy;
-	short life;
+	short lives;
 	char *name;
 } Man;
 
@@ -42,13 +40,16 @@ typedef struct{
 	SDL_Texture *rectTexture;
 	SDL_Texture *ledgeTexture;
 	SDL_Texture *labelTexture;
-
+	
 	//Fonts
 	TTF_Font *fontTexture;
 
 	//Time
 	int time;
 	int gameStatus;
+	
+	//Text
+	int labelh, labelw;
 
 	//Renderer
 	SDL_Renderer *renderer;
