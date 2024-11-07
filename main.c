@@ -56,7 +56,7 @@ void process(GameState *game){
 		if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
 			//if (!man->dy) {
 			//	man->dy = -15;
-			//}
+		//}
 			jumpPressed = 1;
 		}
 		//}
