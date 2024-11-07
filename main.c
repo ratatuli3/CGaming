@@ -6,7 +6,7 @@
 #include "status.h"
 
 
-#define GRAVITY 0.2f
+#define GRAVITY 0.3f
 
 int wouldCollide(GameState *game, float nextX, float nextY) {
     float manw = 48, manh = 48;
@@ -45,6 +45,8 @@ void process(GameState *game){
 		float nextY = man->y + man->dy + GRAVITY;
 		float nextDY = man->dy + GRAVITY;
 
+		int jumpPressed = 0;
+
 		if (state[SDL_SCANCODE_LEFT] || state[SDL_SCANCODE_A]){
 			nextX-=speed;
 		}
@@ -52,9 +54,10 @@ void process(GameState *game){
 			nextX+=speed;
 		}
 		if (state[SDL_SCANCODE_UP] || state[SDL_SCANCODE_W]) {
-			if (!man->dy) {
-				man->dy = -15;
-			}
+			//if (!man->dy) {
+			//	man->dy = -15;
+			//}
+			jumpPressed = 1;
 		}
 		//}
 		//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
@@ -72,12 +75,15 @@ void process(GameState *game){
 			man->dy = nextDY;
 		} else {
 		// Optionally try moving on just X or Y axis if diagonal movement failed
+			if (jumpPressed) {
+				man->dy = -15;
+				jumpPressed = 0;
+			}
 			if (nextDY < 0){ // This means if its touching the bottom cause velocity would only be negative if its already jumping
 				man->dy = GRAVITY;
 			} else if (man->dy != -15){
 				man->dy = 0;
 			}
-			//}
 			if (!wouldCollide(game, nextX, man->y)) {
 				man->x = nextX;  // Allow X movement
 			}
@@ -153,10 +159,10 @@ void loadGame(GameState *game){
 		game->ledges[i].w = 300;
 		game->ledges[i].h = 97;
 		game->ledges[i].x = i*256;
-		game->ledges[i].y = 430;
+		game->ledges[i].y = 900;
 	}
-	game->ledges[99].x = 150;
-	game->ledges[99].y = 200;
+	game->ledges[99].x = 300;
+	game->ledges[99].y = 750;
 }
 
 int processEvents(SDL_Window *window, GameState *game){
@@ -266,8 +272,8 @@ int main(int argc, char *argv[]){
 		"Square Game",		// Window Title
 		SDL_WINDOWPOS_UNDEFINED,// initial x position
 		SDL_WINDOWPOS_UNDEFINED,// initial y position
-		640,	// width
-		480,	// height
+		1280,	// width
+		960,	// height
 		0	//flags
 	);
 	

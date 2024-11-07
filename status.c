@@ -23,13 +23,13 @@ void drawStatusLives(GameState *game){
 	SDL_RenderClear(renderer);
 	
 	// Draw a rectangle at man's position
-	SDL_Rect rect = {220, 220, 48, 48};
+	SDL_Rect rect = { 570, 450, 48, 48};
 	SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
 	
 	// Set the drawing color to white
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 	
-	SDL_Rect textRect = { 285, 270-game->labelh, game->labelw+20, game->labelh };
+	SDL_Rect textRect = { 630, 450, game->labelw+20, game->labelh };
 	SDL_RenderCopy(renderer, game->labelTexture, NULL, &textRect);
 }
 
