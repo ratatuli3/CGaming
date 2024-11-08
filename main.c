@@ -64,9 +64,7 @@ void process(GameState *game){
 		//	nextY+=speed;
 		//}
 		
-		if (nextDY < 0){
-			nextDY += GRAVITY;
-		}
+	
 
 		// Only move if the next position wouldn't cause a collision
 		if (!wouldCollide(game, nextX, nextY)) {
@@ -84,10 +82,10 @@ void process(GameState *game){
 			} else if (man->dy != -15){
 				man->dy = 0;
 			}
-			if (!wouldCollide(game, nextX, man->y)) {
+			if (!wouldCollide(game, nextX, man->y)) { // If it doesn't collide horizontally
 				man->x = nextX;  // Allow X movement
 			}
-			if (!wouldCollide(game, man->x, nextY)) {
+			if (!wouldCollide(game, man->x, nextY)) { // If it doesn't collide vertically
 				man->y = nextY;  // Allow Y movement
 				man->dy = nextDY;
 			}
@@ -162,7 +160,7 @@ void loadGame(GameState *game){
 		game->ledges[i].y = 900;
 	}
 	game->ledges[99].x = 300;
-	game->ledges[99].y = 750;
+	game->ledges[99].y = 670;
 }
 
 int processEvents(SDL_Window *window, GameState *game){
@@ -189,9 +187,6 @@ int processEvents(SDL_Window *window, GameState *game){
 					case SDLK_LEFT:
 					break;
 					case SDLK_UP:
-						if(!game->man.dy){
-							game->man.dy = -15;
-						}
 					break;
 					case SDLK_DOWN:
 					break;
@@ -200,9 +195,6 @@ int processEvents(SDL_Window *window, GameState *game){
 					case SDLK_a:
 					break;
 					case SDLK_w:
-						if(!game->man.dy){
-							game->man.dy = -15;
-						}
 					break;
 					case SDLK_s:
 					break;

@@ -1,0 +1,198 @@
+#!/usr/bin/rabbitenv python3
+import os
+import time
+import json
+import pika
+from dotenv import load_dotenv
+import mysql.connector
+import logging
+
+load_dotenv()
+
+# RabbitMQ configuration
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
+RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE")
+RABBITMQ_CREDS = pika.PlainCredentials(
+    os.getenv("RABBITMQ_USERNAME"), os.getenv("RABBITMQ_PASSWORD")
+)
+
+#MYSQL configuration
+MYSQL_HOST = os.getenv("MYSQL_HOST")
+MYSQL_USER = os.getenv("MYSQL_USER")
+MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
+MYSQL_DATABASE = os.getenv("MYSQL_DATABASE")
+IP1 = os.getenv("IP1")
+IP2 = os.getenv("IP2")
+
+# List of IPs to ignore
+IGNORED_IPS = [IP1, IP2]
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='logs/send.txt')
+logger = logging.getLogger(__name__)
+
+
+#Configure the Connection
+def getConnection():
+    cowriedb = mysql.connector.connect(
+        host=MYSQL_HOST,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE,
+    )
+    return cowriedb
+
+#Sends the auth data to RabbitMQ
+def sendauth(lastID, latestID):
+    for currentID in range(lastID, latestID):
+        cowriedb = getConnection()
+        cursorauth = cowriedb.cursor()
+        cursorauth.execute(
+            """SELECT a.id AS 'ID', a.timestamp AS 'Timestamp', a.session AS 'SessionID', a.username AS 'Username',
+               a.password AS 'Password', s.ip AS 'IP' FROM cowrie.auth a JOIN cowrie.sessions s 
+               ON a.session = s.id WHERE a.id = %s ORDER BY a.timestamp DESC;"
+            """,
+            (currentID,),
+        )
+        resultauth = cursorauth.fetchall()
+	if resultauth:
+            # Convert the tuple into a dictionary
+            resultauth = resultauth[0]
+       	    data_dict = {
+                "id": resultauth[0],
+                "datetime": resultauth[1].isoformat(),  # Convert datetime object to ISO format
+                "session": resultauth[2],
+                "username": resultauth[3],
+                "password": resultauth[4],
+                "ip_address": resultauth[5],
+	        "type": 'auth'
+            }
+
+            # Convert the dictionary to JSON
+            auth_ip = data_dict.get("ip_address", "")
+            # Now you can use json_data as needed, such as sending it to another system or processing it further
+            if auth_ip in IGNORED_IPS:
+                   logger.info("Ignoring log from IP: %s", auth_ip)
+                   pass
+            else:
+                   logger.info("Log not in IGNORED_IPS List, data sent of type auth: %s", data_dict)
+                   send_to_rabbitmq(data_dict)
+
+            sessionID = getsessionID(currentID)
+            sendinput(sessionID)
+        else:
+            logger.info("No new records. Waiting...")
+            time.sleep(10)
+
+        cursorauth.close()
+        cowriedb.close()
+
+        with open("lastidauth.txt", "w") as text_file:
+            text_file.write(str(currentID))
+
+def sendinput(sessionID):
+    latestID = getminIDinput(sessionID)
+    while latestID != None:
+        cowriedb = getConnection()
+        cursorinput = cowriedb.cursor()
+        cursorinput.execute(
+            """SELECT i.id AS 'ID', i.timestamp AS 'Timestamp', i.session AS 'SessionID', i.input AS 'Input'
+            FROM cowrie.input i WHERE i.session = %s AND i.id = %s ORDER BY i.timestamp DESC;"
+            """,
+            (
+                sessionID,
+                latestID,
+            ),
+        )
+        resultinput = cursorinput.fetchall()
+        if resultinput:
+            resultinput = resultinput[0]
+            data_dict = {
+                "id": resultinput[0],
+                "datetime": resultinput[1].isoformat(),  # Convert datetime object to ISO format
+                "session": resultinput[2],
+                "input": resultinput[3],
+                "type": "input",
+            }
+            json_data = json.dumps(data_dict)
+            logger.info("Data sent of type input: %s", data_dict)
+            send_to_rabbitmq(data_dict)
+            latestID = latestID + 1
+        else:
+            break
+
+        cursorinput.close()
+        cowriedb.close()
+
+
+def getIDauth():
+    cowriedb = getConnection()
+    IDcursor = cowriedb.cursor()
+    IDcursor.execute("SELECT MAX(id) FROM cowrie.auth;")
+    latestID = IDcursor.fetchone()
+    with open("lastidauth.txt", "rt") as myfile:
+        lastID = int(myfile.read()) + 1
+    if latestID[0] > int(
+        lastID
+    ):  # If ID has new Rows so lastID and latestID will be different
+        logger.info("New Row!")
+        IDcursor.close()
+        cowriedb.close()
+        return int(lastID), latestID[0]
+    else:
+        pass
+    IDcursor.close()
+    cowriedb.close()
+    return int(lastID), latestID[0]
+
+
+def getsessionID(currentID):
+    cowriedb = getConnection()
+    sessioncursor = cowriedb.cursor()
+    sessioncursor.execute(
+        "SELECT session FROM cowrie.auth WHERE id = %s;",
+        (currentID,),
+    )
+    sessionID = sessioncursor.fetchone()
+    return sessionID[0]
+
+
+def getminIDinput(sessionID):
+    cowriedb = getConnection()
+    IDcursor = cowriedb.cursor()
+    IDcursor.execute("SELECT MIN(id) FROM cowrie.input WHERE session = %s;", (sessionID,),)
+    latestID = IDcursor.fetchone()
+    #with open("lastidinput.txt", "rt") as myfile:
+    #    lastID = int(myfile.read()) + 1
+    #if latestID[0] > int(
+    #    lastID
+    #):  # If ID has new Rows so lastID and latestID will be different
+    #    print("New Row!")
+    #    IDcursor.close()
+    #    cowriedb.close()
+    #    return int(lastID), latestID[0]
+    #else:
+    #    pass
+    IDcursor.close()
+    cowriedb.close()
+    return latestID[0]
+
+
+# Function to send data to RabbitMQ
+def send_to_rabbitmq(data):
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(RABBITMQ_HOST, 5672, "/", RABBITMQ_CREDS)
+    )
+    channel = connection.channel()
+    channel.queue_declare(queue=RABBITMQ_QUEUE)
+    data_bytes = json.dumps(data).encode("utf-8")
+    channel.basic_publish(exchange="", routing_key=RABBITMQ_QUEUE, body=data_bytes)
+    connection.close()
+    logger.info(" [x] Sent 'Row!'")
+
+
+if __name__ == "__main__":
+    # Start processing database
+    while True:
+        lastID, latestID = getIDauth()
+        sendauth(lastID, latestID)
