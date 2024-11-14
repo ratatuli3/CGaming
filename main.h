@@ -5,7 +5,7 @@
 #define STATUS_STATE_GAME 1
 #define STATUS_STATE_GAMEOVER 2
 
-#define NUM_STARS 100
+#define NUM_STARS 1000
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -49,7 +49,7 @@ typedef struct{
 	TTF_Font *fontTexture;
 
 	//Time
-	int time;
+	int time, deathCountdown;
 	int gameStatus;
 	
 	//Text

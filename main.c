@@ -42,13 +42,18 @@ void process(GameState *game){
 
 	// Add time.
 	game->time++;
-
-	if(game->time > 120){
-		shutdownStatusLives(game);
-		game->gameStatus = STATUS_STATE_GAME;
-	}
 	
-	if(game->gameStatus == STATUS_STATE_GAME && !game->man.isDead){
+	if(game->gameStatus == STATUS_STATE_LIVES){
+		if(game->time > 120){
+			shutdownStatusLives(game);
+			game->gameStatus = STATUS_STATE_GAME;
+		}
+	}
+	else if(game->gameStatus == STATUS_STATE_GAMEOVER){
+		SDL_Quit();
+		exit(0);
+	}
+	else if(game->gameStatus == STATUS_STATE_GAME && !game->man.isDead){
 		Man *man = &game->man;
 		const Uint8 *state = SDL_GetKeyboardState(NULL);
 
@@ -75,8 +80,6 @@ void process(GameState *game){
 		//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
 		//	nextY+=speed;
 		//}
-		
-	
 
 		// Only move if the next position wouldn't cause a collision
 		if (!wouldCollide(game, nextX, nextY)) {
@@ -102,10 +105,28 @@ void process(GameState *game){
 				man->dy = nextDY;
 			}
 		} else if (wouldCollide(game, nextX, nextY) == 2){ // If it collides with star
-			game->man.isDead = 1;
+			game->man.isDead = 1;            
+			game->deathCountdown = 120;
 		}
 	}
-
+	// Handle death and respawn
+	if (game->man.isDead) {
+		if (game->deathCountdown > 0) {
+			game->deathCountdown--;
+		} else if (game->man.lives >= 0) {
+			game->man.lives--;
+			initStatusLives(game);
+			game->gameStatus = STATUS_STATE_LIVES;
+			game->time = 0;
+			game->man.isDead = 0;
+			game->man.x = 100;
+			game->man.y = 240 - 40;
+			game->man.dy = 0;
+		} else {
+			game->gameStatus = STATUS_STATE_GAMEOVER;
+			game->time = 0;
+		}
+	}
 	game->scrollX = -game->man.x+640;
 	if(game->scrollX > 0){
 		game->scrollX = 0;
@@ -180,6 +201,7 @@ void loadGame(GameState *game){
 
 	game->time = 0;
 	game->scrollX = 0;
+	game->deathCountdown = -1;
 	
 	//Initialize stars
 	for(int i = 0; i < NUM_STARS; i++){
