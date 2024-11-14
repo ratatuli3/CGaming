@@ -20,7 +20,19 @@ int wouldCollide(GameState *game, float nextX, float nextY) {
         // Check if the NEXT position would overlap with this ledge
         if(nextX + manw > ledgex && nextX < ledgex + ledgew &&
            nextY + manh > ledgey && nextY < ledgey + ledgeh) {
-            return 1;  // Would collide
+            return 1;  // Would collide with ledge
+        }
+    }    
+    for(int i = 0; i < NUM_STARS; i++) {
+        float starx = game->stars[i].x;
+        float stary = game->stars[i].y;
+        float starw = game->stars[i].w-30;
+        float starh = game->stars[i].h-20;
+        
+        // Check if the NEXT position would overlap with this ledge
+        if(game->man.x + manw > starx && game->man.x < starx + starw &&
+           game->man.y + manh > stary && game->man.y < stary + starh) {
+            return 2;  // Would collide with star
         }
     }
     return 0;  // Wouldn't collide
@@ -36,11 +48,11 @@ void process(GameState *game){
 		game->gameStatus = STATUS_STATE_GAME;
 	}
 	
-	if(game->gameStatus == STATUS_STATE_GAME){
+	if(game->gameStatus == STATUS_STATE_GAME && !game->man.isDead){
 		Man *man = &game->man;
 		const Uint8 *state = SDL_GetKeyboardState(NULL);
 
-		float speed = 3;
+		float speed = 5;
 		float nextX = man->x;
 		float nextY = man->y + man->dy + GRAVITY;
 		float nextDY = man->dy + GRAVITY;
@@ -71,7 +83,7 @@ void process(GameState *game){
 			man->x = nextX;
 			man->y = nextY;
 			man->dy = nextDY;
-		} else {
+		} else if (wouldCollide(game, nextX, nextY) == 1){ // If it collides with ledge
 		// Optionally try moving on just X or Y axis if diagonal movement failed
 			if (jumpPressed) {
 				man->dy = -15;
@@ -89,7 +101,14 @@ void process(GameState *game){
 				man->y = nextY;  // Allow Y movement
 				man->dy = nextDY;
 			}
+		} else if (wouldCollide(game, nextX, nextY) == 2){ // If it collides with star
+			game->man.isDead = 1;
 		}
+	}
+
+	game->scrollX = -game->man.x+640;
+	if(game->scrollX > 0){
+		game->scrollX = 0;
 	}
 }
 
@@ -129,6 +148,18 @@ void loadGame(GameState *game){
 	game->ledgeTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
 	SDL_FreeSurface(surface);
 
+	
+	//Load images and create rendering textures from them
+	surface = IMG_Load("../images/fire.png");
+	if(surface == NULL){
+		printf("Cannot find fire.png!\n\n");
+		SDL_Quit();
+		exit(1);
+	}
+
+	game->fireTexture = SDL_CreateTextureFromSurface(game->renderer, surface);
+	SDL_FreeSurface(surface);
+
 	game->fontTexture = TTF_OpenFont("../fonts/ARCADECLASSIC.TTF", 48);
 	if(!game->fontTexture){
 		printf("Cannot find ARCADECLASSIC.TTF!\n\n");
@@ -143,13 +174,19 @@ void loadGame(GameState *game){
 	game->man.dy = 0;
 	game->gameStatus = STATUS_STATE_LIVES;
 	game->man.lives = 3;
+	game->man.isDead = 0;
 
 	initStatusLives(game);
+
+	game->time = 0;
+	game->scrollX = 0;
 	
 	//Initialize stars
-	for(int i = 0; i < 100; i++){
-		game->stars[i].x = random()%640;
-		game->stars[i].y = random()%480;
+	for(int i = 0; i < NUM_STARS; i++){
+		game->stars[i].x = 320+random()%38400;
+		game->stars[i].y = random()%1080;
+		game->stars[i].w = 64;
+		game->stars[i].h = 64;
 	}
 
 	//Initialize ledges
@@ -231,19 +268,25 @@ void doRender(SDL_Renderer *renderer, GameState *game){
 
 		// Draw the ledge images
 		for(int i = 0; i < 100; i++){
-			SDL_Rect ledgeRect = {game->ledges[i].x, game->ledges[i].y, game->ledges[i].w, game->ledges[i].h};
+			SDL_Rect ledgeRect = {game->scrollX+game->ledges[i].x, game->ledges[i].y, game->ledges[i].w, game->ledges[i].h};
 			SDL_RenderCopy(renderer, game->ledgeTexture, NULL, &ledgeRect);
 		}
 
 		// Draw a rectangle at man's position
-		SDL_Rect rect = {game->man.x, game->man.y, 48, 48};
+		SDL_Rect rect = {game->scrollX+game->man.x, game->man.y, 48, 48};
 		SDL_RenderCopyEx(renderer, game->rectTexture, NULL, &rect, 0, NULL, 0);
+		
+		if(game->man.isDead){
+			// Draw a rectangle at man's position
+			SDL_Rect rect = {game->scrollX+game->man.x-15, game->man.y-20, 75, 75};
+			SDL_RenderCopyEx(renderer, game->fireTexture, NULL, &rect, 0, NULL, game->time%20 < 10);
+		}
 
-		// Draw the star images
-	//	for(int i = 0; i < 100; i++){
-	//		SDL_Rect starRect = {game->stars[i].x, game->stars[i].y, 64, 64};
-	//		SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
-	//	}
+		//Draw the star images
+		for(int i = 0; i < NUM_STARS; i++){
+			SDL_Rect starRect = {game->scrollX+game->stars[i].x, game->stars[i].y, game->stars[i].w, game->stars[i].h};
+			SDL_RenderCopy(renderer, game->starTexture, NULL, &starRect);
+		}
 	}
 	//After drawing we show what we've drawn
 	SDL_RenderPresent(renderer);

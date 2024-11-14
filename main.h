@@ -5,6 +5,8 @@
 #define STATUS_STATE_GAME 1
 #define STATUS_STATE_GAMEOVER 2
 
+#define NUM_STARS 100
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
@@ -13,11 +15,12 @@ typedef struct{
 	float x, y;
 	float dy;
 	short lives;
+	int isDead;
 	char *name;
 } Man;
 
 typedef struct{
-	int x, y;
+	int x, y, w, h;
 } Star;
 
 typedef struct{
@@ -25,12 +28,12 @@ typedef struct{
 } Ledge;
 
 typedef struct{
-	
+	float scrollX;
 	//Players
 	Man man;
 
 	//Stars
-	Star stars[100];
+	Star stars[NUM_STARS];
 
 	//Ledges
 	Ledge ledges[100];
@@ -40,6 +43,7 @@ typedef struct{
 	SDL_Texture *rectTexture;
 	SDL_Texture *ledgeTexture;
 	SDL_Texture *labelTexture;
+	SDL_Texture *fireTexture;
 	
 	//Fonts
 	TTF_Font *fontTexture;
