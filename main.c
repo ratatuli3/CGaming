@@ -26,7 +26,7 @@ int wouldCollide(GameState *game, float nextX, float nextY) {
     for(int i = 0; i < NUM_STARS; i++) {
         float starx = game->stars[i].x;
         float stary = game->stars[i].y;
-        float starw = game->stars[i].w-30;
+        float starw = game->stars[i].w;
         float starh = game->stars[i].h-20;
         
         // Check if the NEXT position would overlap with this ledge
@@ -80,6 +80,10 @@ void process(GameState *game){
 		//if (state[SDL_SCANCODE_DOWN] || state[SDL_SCANCODE_S]){
 		//	nextY+=speed;
 		//}
+		else if (wouldCollide(game, man->x, man->y) == 2){ // If it collides with star
+			game->man.isDead = 1;            
+			game->deathCountdown = 120;
+		}
 
 		// Only move if the next position wouldn't cause a collision
 		if (!wouldCollide(game, nextX, nextY)) {
@@ -104,25 +108,26 @@ void process(GameState *game){
 				man->y = nextY;  // Allow Y movement
 				man->dy = nextDY;
 			}
-		} else if (wouldCollide(game, nextX, nextY) == 2){ // If it collides with star
-			game->man.isDead = 1;            
-			game->deathCountdown = 120;
-		}
+		} 
 	}
 	// Handle death and respawn
 	if (game->man.isDead) {
 		if (game->deathCountdown > 0) {
 			game->deathCountdown--;
-		} else if (game->man.lives >= 0) {
+		}
+		else if (game->man.lives == 3){
 			game->man.lives--;
+		}
+		else if (game->man.lives >= 0) {
 			initStatusLives(game);
+			game->man.lives--;
 			game->gameStatus = STATUS_STATE_LIVES;
 			game->time = 0;
 			game->man.isDead = 0;
 			game->man.x = 100;
 			game->man.y = 240 - 40;
 			game->man.dy = 0;
-		} else {
+		} else if (game->man.lives < 0) {
 			game->gameStatus = STATUS_STATE_GAMEOVER;
 			game->time = 0;
 		}
